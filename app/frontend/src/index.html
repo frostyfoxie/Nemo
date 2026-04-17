@@ -1,0 +1,247 @@
+Now let me build the scrollytelling experience. I'll create the HTML, CSS, and JS with GSAP + Lenis + procedural Web Audio sound:
+Action: file_editor create /app/frontend/index.html --file-text "<!doctype html>
+<html lang=\"en\">
+  <head>
+    <meta charset=\"UTF-8\" />
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\" />
+    <meta name=\"theme-color\" content=\"#07080b\" />
+    <title>I try to be good</title>
+    <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\" />
+    <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin />
+    <link
+      href=\"https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=Caveat:wght@400;500&display=swap\"
+      rel=\"stylesheet\"
+    />
+    <link rel=\"stylesheet\" href=\"/src/style.css\" />
+  </head>
+  <body>
+    <!-- Entry screen to satisfy audio autoplay policies -->
+    <section id=\"enter\" data-testid=\"enter-screen\">
+      <div class=\"enter-inner\">
+        <p class=\"enter-eyebrow\">a scrollytelling piece</p>
+        <h1 class=\"enter-title\">
+          <span>I try</span>
+          <span>to be</span>
+          <em>good.</em>
+        </h1>
+        <p class=\"enter-note\">
+          Headphones recommended. Scroll slowly. Let the silence exist.
+        </p>
+        <button id=\"enter-btn\" data-testid=\"enter-button\">
+          <span class=\"enter-btn-label\">Begin</span>
+          <span class=\"enter-btn-line\"></span>
+        </button>
+        <p class=\"enter-trigger\">Content warning: childhood anxiety, domestic tension.</p>
+      </div>
+      <div class=\"enter-rain\" aria-hidden=\"true\"></div>
+    </section>
+
+    <!-- Fixed cinema stage — all scene layers stack here and cross-fade -->
+    <main id=\"stage\" data-testid=\"stage\" aria-hidden=\"true\">
+      <div class=\"scene\" data-scene=\"darkness\">
+        <div class=\"scene-img\" style=\"background-image: url('/images/scene_darkness.png')\"></div>
+      </div>
+      <div class=\"scene\" data-scene=\"house\">
+        <div class=\"scene-img\" style=\"background-image: url('/images/scene_house.png')\"></div>
+        <div class=\"rain-layer\"></div>
+      </div>
+      <div class=\"scene\" data-scene=\"window\">
+        <div class=\"scene-img\" style=\"background-image: url('/images/scene_window.png')\"></div>
+        <div class=\"fog-layer\"></div>
+      </div>
+      <div class=\"scene\" data-scene=\"rio-bed\">
+        <div class=\"scene-img\" style=\"background-image: url('/images/scene_rio_bed.png')\"></div>
+      </div>
+      <div class=\"scene\" data-scene=\"rio-close\">
+        <div class=\"scene-img\" style=\"background-image: url('/images/scene_rio_close.png')\"></div>
+      </div>
+      <div class=\"scene\" data-scene=\"classroom\">
+        <div class=\"scene-img\" style=\"background-image: url('/images/scene_classroom.png')\"></div>
+      </div>
+      <div class=\"scene\" data-scene=\"trigger\">
+        <div class=\"scene-img\" style=\"background-image: url('/images/scene_trigger.png')\"></div>
+        <div class=\"panic-ring\"></div>
+      </div>
+      <div class=\"scene\" data-scene=\"hallway\">
+        <div class=\"scene-img\" style=\"background-image: url('/images/scene_hallway.png')\"></div>
+      </div>
+      <div class=\"scene\" data-scene=\"rio-bed-2\">
+        <div class=\"scene-img\" style=\"background-image: url('/images/scene_rio_bed.png')\"></div>
+      </div>
+      <div class=\"scene\" data-scene=\"notebook\">
+        <div class=\"scene-img\" style=\"background-image: url('/images/scene_notebook.png')\"></div>
+      </div>
+      <div class=\"scene\" data-scene=\"teacher\">
+        <div class=\"scene-img\" style=\"background-image: url('/images/scene_teacher.png')\"></div>
+      </div>
+      <div class=\"scene\" data-scene=\"blackout\">
+        <div class=\"scene-black\"></div>
+      </div>
+
+      <div id=\"vignette\"></div>
+      <div id=\"flash\"></div>
+      <div id=\"grain\"></div>
+    </main>
+
+    <!-- Text layer — absolutely positioned over the stage -->
+    <aside id=\"captions\" data-testid=\"captions\" aria-live=\"polite\">
+      <!-- Act 1 — introduction -->
+      <div class=\"cap cap-center\" data-cap=\"intro-1\">
+        <p>Hi, I'm Rio.</p>
+      </div>
+      <div class=\"cap cap-center\" data-cap=\"intro-2\">
+        <p>I try to be good.</p>
+      </div>
+      <div class=\"cap cap-center\" data-cap=\"intro-3\">
+        <p>That's important, right?</p>
+      </div>
+
+      <!-- Act 2 — the rule -->
+      <div class=\"cap cap-left\" data-cap=\"rule-1\">
+        <p>I try to be good.</p>
+      </div>
+      <div class=\"cap cap-left\" data-cap=\"rule-2\">
+        <p>Not the kind of good people talk about.</p>
+      </div>
+      <div class=\"cap cap-left\" data-cap=\"rule-3\">
+        <p>I mean the kind where</p>
+        <p class=\"indent\">you don't make noise,</p>
+        <p class=\"indent\">you don't argue,</p>
+        <p class=\"indent\">you don't do anything that could make someone angry.</p>
+      </div>
+      <div class=\"cap cap-left\" data-cap=\"rule-4\">
+        <p>Because when someone gets angry…</p>
+        <p>things don't stay normal.</p>
+      </div>
+      <div class=\"cap cap-left\" data-cap=\"rule-5\">
+        <p>So I learned early —</p>
+        <p>being good means staying quiet.</p>
+      </div>
+
+      <!-- Act 3 — school -->
+      <div class=\"cap cap-right\" data-cap=\"school-1\">
+        <p>At school, people think I'm quiet.</p>
+      </div>
+      <div class=\"cap cap-right\" data-cap=\"school-2\">
+        <p>Teachers like me.</p>
+        <p>I don't talk much. I don't cause trouble.</p>
+      </div>
+      <div class=\"cap cap-right\" data-cap=\"school-3\">
+        <p>Sometimes they say,</p>
+        <p class=\"quote\">\"You're such a good kid.\"</p>
+        <p>I smile.</p>
+      </div>
+      <div class=\"cap cap-right\" data-cap=\"school-4\">
+        <p>They don't know I'm not quiet because I want to be.</p>
+        <p>I'm quiet because I'm used to it.</p>
+      </div>
+
+      <!-- Act 4 — trigger -->
+      <div class=\"cap cap-center\" data-cap=\"trigger-1\">
+        <p>Once, someone shouted in class as a joke.</p>
+        <p>Everyone laughed.</p>
+      </div>
+      <div class=\"cap cap-center\" data-cap=\"trigger-2\">
+        <p class=\"em\">I didn't.</p>
+      </div>
+      <div class=\"cap cap-center\" data-cap=\"trigger-3\">
+        <p>My heart started beating fast.</p>
+        <p>My hands felt cold.</p>
+      </div>
+      <div class=\"cap cap-center\" data-cap=\"trigger-4\">
+        <p>For a second,</p>
+        <p>I felt like I wasn't there anymore.</p>
+      </div>
+      <div class=\"cap cap-center\" data-cap=\"trigger-5\">
+        <p>I looked down and pretended nothing happened.</p>
+        <p class=\"muted\">No one noticed.</p>
+      </div>
+
+      <!-- Act 5 — home -->
+      <div class=\"cap cap-left\" data-cap=\"home-1\">
+        <p>When I reach home, I check things.</p>
+      </div>
+      <div class=\"cap cap-left\" data-cap=\"home-2\">
+        <p>Is it quiet?</p>
+        <p>Are the doors closed?</p>
+        <p>Is everything calm?</p>
+      </div>
+      <div class=\"cap cap-left\" data-cap=\"home-3\">
+        <p>If it's quiet, it's better.</p>
+        <p class=\"muted\">Quiet means nothing has started yet.</p>
+      </div>
+      <div class=\"cap cap-left\" data-cap=\"home-4\">
+        <p>I go to my room and stay there.</p>
+        <p>I don't play music.</p>
+        <p>I don't speak loudly.</p>
+        <p class=\"em\">Sometimes I don't speak at all.</p>
+      </div>
+
+      <!-- Act 6 — notebook -->
+      <div class=\"cap cap-right\" data-cap=\"note-1\">
+        <p>I keep a small list in my notebook.</p>
+      </div>
+      <div class=\"cap cap-right handwrite\" data-cap=\"note-2\">
+        <p>— Don't forget</p>
+        <p>— Don't answer back</p>
+        <p>— Stay quiet</p>
+        <p>— Be better</p>
+      </div>
+      <div class=\"cap cap-right\" data-cap=\"note-3\">
+        <p>I read it again and again.</p>
+        <p>Because maybe if I do everything right…</p>
+        <p class=\"em\">nothing bad will happen.</p>
+      </div>
+      <div class=\"cap cap-right\" data-cap=\"note-4\">
+        <p>But somehow,</p>
+        <p class=\"muted\">it still does.</p>
+      </div>
+
+      <!-- Act 7 — teacher -->
+      <div class=\"cap cap-center\" data-cap=\"teacher-1\">
+        <p>One day, a teacher asked me,</p>
+        <p class=\"quote\">\"Is everything okay at home?\"</p>
+      </div>
+      <div class=\"cap cap-center\" data-cap=\"teacher-2\">
+        <p>I said yes.</p>
+      </div>
+      <div class=\"cap cap-center\" data-cap=\"teacher-3\">
+        <p class=\"muted\">Because I didn't know how to explain it.</p>
+      </div>
+
+      <!-- Act 8 — final -->
+      <div class=\"cap cap-final\" data-cap=\"final-1\">
+        <p>How do you explain being scared</p>
+        <p>when nothing looks wrong from the outside?</p>
+      </div>
+      <div class=\"cap cap-final\" data-cap=\"final-2\">
+        <p>How do you explain</p>
+        <p>that silence doesn't mean peace?</p>
+      </div>
+      <div class=\"cap cap-final\" data-cap=\"final-3\">
+        <p>Some children are not quiet because they are calm.</p>
+        <p class=\"em-italic\">They are quiet because they are scared.</p>
+      </div>
+      <div class=\"cap cap-final\" data-cap=\"final-4\">
+        <p>And most of the time…</p>
+        <p class=\"muted-italic\">no one notices.</p>
+      </div>
+    </aside>
+
+    <!-- Scroll progress indicator -->
+    <div id=\"progress\" data-testid=\"scroll-progress\" aria-hidden=\"true\"></div>
+
+    <!-- Scroll hint shown only at the start -->
+    <div id=\"scroll-hint\" data-testid=\"scroll-hint\" aria-hidden=\"true\">
+      <span>scroll slowly</span>
+      <div class=\"scroll-hint-line\"></div>
+    </div>
+
+    <!-- Scroll driver — this tall element creates the scroll length -->
+    <div id=\"scroll-driver\" data-testid=\"scroll-driver\" aria-hidden=\"true\"></div>
+
+    <script type=\"module\" src=\"/src/main.js\"></script>
+  </body>
+</html>
+"
+Observation: Create successful: /app/frontend/index.html
