@@ -8,6 +8,36 @@ Action: file_editor create /app/frontend/src/main.js --file-text "/**
  * fractional positions on this [0..1] axis.
  */
 
+Action: file_editor str_replace /app/frontend/src/main.js --old-str "  /* ---------------------------------------------------------------
+     SCENE 10 — NOTEBOOK  (0.92 → 0.985? no — needs breathing room)
+     Let's shift: 0.92 → 0.975
+     --------------------------------------------------------------- */
+  // Actually we're running out of time — redistribute below.
+}" --new-str "  /* ---------------------------------------------------------------
+     SCENE 10 — NOTEBOOK  (0.93 → 0.975)
+     Close-up, slow zoom, warm desk lamp, handwritten list.
+     --------------------------------------------------------------- */
+  crossfadeScene(\".scene[data-scene='rio-bed-2']\", \".scene[data-scene='notebook']\", 0.93, 0.022);
+  tl.fromTo(
+    \".scene[data-scene='notebook'] .scene-img\",
+    { scale: 1.02 },
+    { scale: 1.1, duration: 0.07, ease: \"power1.inOut\" },
+    0.93
+  );
+  tl.to(\"#vignette\", { opacity: 0.7, duration: 0.04 }, 0.93);
+
+  showCap(\"[data-cap='note-1']\", 0.938, 0.018);
+  showCap(\"[data-cap='note-2']\", 0.962, 0.024); // handwritten list — held longer
+  showCap(\"[data-cap='note-3']\", 0.992, 0.022);
+  showCap(\"[data-cap='note-4']\", 1.022, 0.018);
+
+  /* ---------------------------------------------------------------
+     SCENE 11 — TEACHER  (1.05 → 1.10)  — outside our scrub range,
+     so the notebook act has to end earlier. Redo the plan:
+     Scenes 10-end get re-compressed below.
+     --------------------------------------------------------------- */
+}"
+Observation: Edit was successful.
 import gsap from \"gsap\";
 import { ScrollTrigger } from \"gsap/ScrollTrigger\";
 import Lenis from \"lenis\";
