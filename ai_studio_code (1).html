@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PORTOROSSO | Mediterranean Light</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600&family=Montserrat:wght@200;400&display=swap');
+        
+        body { 
+            margin: 0; overflow: hidden; background: #88e0ff; 
+            cursor: none; user-select: none;
+        }
+        canvas { display: block; }
+        
+        #ui { 
+            position: absolute; 
+            bottom: 10vh; left: 50%; 
+            transform: translateX(-50%);
+            color: #fff; pointer-events: none; 
+            text-align: center; z-index: 100;
+        }
+        
+        h1 { 
+            margin: 0; font-family: 'Cinzel', serif; 
+            font-size: clamp(35px, 6vw, 70px); 
+            letter-spacing: 0.3em; 
+            background: linear-gradient(to bottom, #ffffff 30%, #b0f4ff 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 10px 20px rgba(0, 100, 120, 0.2));
+            animation: fadeIn 3s ease-out;
+        }
+        
+        p { 
+            margin: 10px 0 0 0; font-family: 'Montserrat', sans-serif; 
+            font-size: 10px; letter-spacing: 1.2em; color: #ffffff;
+            opacity: 0.8; text-transform: uppercase;
+            animation: fadeIn 5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); filter: blur(10px); }
+            to { opacity: 1; transform: translateY(0); filter: blur(0); }
+        }
+
+        #noise {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            opacity: 0.04; pointer-events: none; z-index: 60;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+    </style>
+</head>
+<body>
+    <div id="noise"></div>
+    <div id="ui">
+        <h1>PORTOROSSO</h1>
+        <p>The Zenith of Mediterranean Light</p>
+    </div>
+
+<script type="importmap">
+    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js" } }
+</script>
+
+<script type="module">
+    import * as THREE from 'three';
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x88d0ff, 0.002);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 5000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.1;
+    
+    renderer.localClippingEnabled = true;
+    document.body.appendChild(renderer.domElement);
+
+    const cutZ = 44.95; 
+    const clipPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), cutZ);
+
+    const noiseFuncs = `
+        vec2 hash(vec2 p) {
+            p = vec2(dot(p,vec2(127.1,311.7)), dot(p,vec2(269.5,183.3)));
+            return fract(sin(p)*43758.5453);
+        }
+        float noise(vec2 p) {
+            vec2 i = floor(p); vec2 f = fract(p);
+            vec2 u = f*f*(3.0-2.0*f);
+            return mix(mix(dot(hash(i+vec2(0,0)),f-vec2(0,0)),dot(hash(i+vec2(1,0)),f-vec2(1,0)),u.x),
+                       mix(dot(hash(i+vec2(0,1)),f-vec2(0,1)),dot(hash(i+vec2(1,1)),f-vec2(1,1)),u.y),u.y);
+        }
+        float voronoi(vec2 x) {
+            vec2 n = floor(x); vec2 f = fract(x);
+            float m = 8.0;
+            for(int j=-1; j<=1; j++)
+            for(int i=-1; i<=1; i++) {
+                vec2 g = vec2(float(i),float(j));
+                vec2 o = hash(n + g);
+                vec2 r = g + o - f;
+                m = min(m, dot(r,r));
+            }
+            return sqrt(m);
+        }
+    `;
+
+    // --- SKY ---
+    const skyMat = new THREE.ShaderMaterial({
+        side: THREE.BackSide,
+        uniforms: {
+            uTime: { value: 0 },
+            uSunPos: { value: new THREE.Vector3(-0.5, 0.2, -1.0).normalize() }
+        },
+        vertexShader: `
+            varying vec3 vWorldDir;
+            void main() {
+                vWorldDir = normalize(position);
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `,
+        fragmentShader: `
+            varying vec3 vWorldDir;
+            uniform vec3 uSunPos;
+            void main() {
+                vec3 dir = vWorldDir;
+                float sunDot = max(0.0, dot(dir, uSunPos));
+                vec3 skyBlue = vec3(0.2, 0.5, 1.0);
+                vec3 horizonColor = vec3(0.7, 0.9, 1.0);
+                vec3 finalSky = mix(horizonColor, skyBlue, pow(max(0.0, dir.y), 0.6));
+                float sunDisc = pow(sunDot, 1200.0);
+                float sunGlow = pow(sunDot, 12.0);
+                vec3 sunColor = vec3(1.0, 0.95, 0.8);
+                finalSky += sunDisc * sunColor * 10.0;
+                finalSky += sunGlow * sunColor * 0.4;
+                gl_FragColor = vec4(finalSky, 1.0);
+            }
+        `
+    });
+    const sky = new THREE.Mesh(new THREE.SphereGeometry(4000, 32, 32), skyMat);
+    scene.add(sky);
+
+    // --- PIXAR DISTANT MOUNTAINS ---
+    const mountRanges = [];
+    const sunPos = new THREE.Vector3(-0.5, 0.2, -1.0).normalize();
+
+    function createMountainRange(z, yOffset, scaleX, layerIdx) {
+        const mountMat = new THREE.ShaderMaterial({
+            transparent: true,
+            uniforms: {
+                uCameraPos: { value: new THREE.Vector3() },
+                uSunPos: { value: sunPos },
+                uLayerIdx: { value: layerIdx }
+            },
+            vertexShader: `
+                varying vec3 vWorldPos;
+                varying vec2 vUv;
+                void main() {
+                    vUv = uv;
+                    vec4 wp = modelMatrix * vec4(position, 1.0);
+                    vWorldPos = wp.xyz;
+                    gl_Position = projectionMatrix * viewMatrix * wp;
+                }
+            `,
+            fragmentShader: `
+                varying vec3 vWorldPos;
+                varying vec2 vUv;
+                uniform vec3 uCameraPos;
+                uniform vec3 uSunPos;
+                uniform float uLayerIdx;
+                ${noiseFuncs}
+                void main() {
+                    float freq = 2.0 + uLayerIdx * 1.5;
+                    float h = noise(vUv * vec2(freq, 0.5)) * (40.0 + uLayerIdx * 20.0);
+                    float h2 = noise(vUv * vec2(freq * 3.0, 1.0)) * 10.0;
+                    
+                    if(vWorldPos.y > -20.0 + h + h2) discard;
+
+                    float dist = length(vWorldPos - uCameraPos);
+                    
+                    // Atmospheric Blue Gradient
+                    vec3 baseBlue = vec3(0.1, 0.3, 0.6);
+                    vec3 distantBlue = vec3(0.7, 0.85, 1.0);
+                    
+                    float fogFactor = smoothstep(400.0, 2500.0, dist + uLayerIdx * 300.0);
+                    vec3 color = mix(baseBlue, distantBlue, fogFactor);
+                    
+                    // Subtle light wrap
+                    float lighting = dot(vec3(0.0, 1.0, 0.3), uSunPos);
+                    color += vec3(0.05, 0.1, 0.15) * lighting;
+
+                    gl_FragColor = vec4(color, 1.0);
+                }
+            `
+        });
+
+        const geo = new THREE.PlaneGeometry(5000, 400, 64, 1);
+        const mesh = new THREE.Mesh(geo, mountMat);
+        mesh.position.set(0, yOffset, z);
+        mesh.rotation.y = Math.PI; 
+        scene.add(mesh);
+        mountRanges.push(mesh);
+    }
+
+    createMountainRange(-1500, 120, 1, 0); // Far back
+    createMountainRange(-1000, 80, 1, 1);  // Mid
+    createMountainRange(-700, 40, 1, 2);   // Closer
+
+    // --- SEABED ---
+    const sandMat = new THREE.ShaderMaterial({
+        uniforms: { 
+            uTime: { value: 0 } 
+        },
+        vertexShader: `
+            varying vec2 vUv; 
+            varying float vY; 
+            varying vec3 vWorldPos;
+            void main() { 
+                vUv = uv * 30.0; 
+                vec4 wp = modelMatrix * vec4(position, 1.0); 
+                vY = wp.y; 
+                vWorldPos = wp.xyz;
+                gl_Position = projectionMatrix * viewMatrix * wp; 
+            }`,
+        fragmentShader: `
+            uniform float uTime;
+            varying vec2 vUv;
+            varying float vY;
+            varying vec3 vWorldPos;
+            ${noiseFuncs}
+            void main() {
+                if (vWorldPos.z > ${cutZ + 0.01}) discard; 
+                vec3 sand = vec3(0.92, 0.88, 0.78);
+                float c1 = voronoi(vUv + uTime * 0.1);
+                float c2 = voronoi(vUv * 1.2 - uTime * 0.15);
+                float caustic = pow(1.0 - abs(c1 - c2), 10.0);
+                vec3 final = mix(sand, vec3(0.1, 0.6, 0.8), smoothstep(-10.0, -140.0, vY));
+                final += vec3(1.0, 1.0, 0.9) * caustic * 0.45;
+                gl_FragColor = vec4(final, 1.0);
+            }
+        `
+    });
+    const seabed = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), sandMat);
+    seabed.rotation.x = -Math.PI/2;
+    seabed.position.y = -60;
+    scene.add(seabed);
+
+    // --- WATER SURFACE ---
+    const waterMat = new THREE.ShaderMaterial({
+        transparent: true,
+        side: THREE.DoubleSide,
+        uniforms: {
+            uTime: { value: 0 },
+            uCameraPos: { value: new THREE.Vector3() },
+            uSunDir: { value: sunPos }
+        },
+        vertexShader: `
+            uniform float uTime;
+            varying vec3 vWorldPos;
+            varying vec3 vNormal;
+            varying float vHeight;
+            varying vec2 vUv;
+
+            vec3 Gerstner(vec2 p, float amp, float freq, float speed, vec2 dir, float time) {
+                float phase = dot(dir, p) * freq + time * speed;
+                return vec3(amp * dir.x * cos(phase), amp * dir.y * cos(phase), amp * sin(phase));
+            }
+
+            void main() {
+                vUv = uv * 35.0;
+                vec3 p = position;
+                vec3 offset = vec3(0.0);
+                float t = uTime * 1.3;
+                offset += Gerstner(p.xy, 2.0, 0.04, 1.2, vec2(1.0, 0.1), t);
+                offset += Gerstner(p.xy, 1.2, 0.08, 1.7, vec2(-0.4, 0.7), t);
+                offset += Gerstner(p.xy, 0.6, 0.15, 2.1, vec2(0.3, -0.9), t);
+                p += offset;
+                vHeight = p.z;
+                vec3 n = vec3(0.0, 0.0, 1.0);
+                n.x -= 0.25 * cos(p.x * 0.05 + t);
+                n.y -= 0.25 * cos(p.y * 0.05 + t);
+                vNormal = normalize(n);
+                vWorldPos = (modelMatrix * vec4(p, 1.0)).xyz;
+                gl_Position = projectionMatrix * viewMatrix * vec4(vWorldPos, 1.0);
+            }
+        `,
+        fragmentShader: `
+            uniform float uTime;
+            uniform vec3 uCameraPos;
+            uniform vec3 uSunDir;
+            varying vec3 vWorldPos;
+            varying vec3 vNormal;
+            varying float vHeight;
+            varying vec2 vUv;
+            ${noiseFuncs}
+            void main() {
+                if (vWorldPos.z > ${cutZ + 0.01}) discard; 
+                vec3 viewDir = normalize(uCameraPos - vWorldPos);
+                vec3 normal = normalize(vNormal);
+                vec3 deepColor = vec3(0.0, 0.35, 0.6);
+                vec3 shallowColor = vec3(0.2, 0.85, 1.0);
+                vec3 waterColor = mix(deepColor, shallowColor, smoothstep(-4.0, 4.0, vHeight));
+                float fresnel = pow(1.0 - max(0.0, dot(viewDir, normal)), 5.0);
+                float c1 = voronoi(vUv + uTime * 0.2);
+                float c2 = voronoi(vUv * 1.4 - uTime * 0.3);
+                float causticPattern = pow(1.0 - abs(c1 - c2), 10.0);
+                float crestMask = smoothstep(0.8, 3.5, vHeight);
+                vec3 crestCaustic = vec3(0.8, 1.0, 1.0) * causticPattern * crestMask * 1.8;
+                vec3 reflectDir = reflect(-uSunDir, normal);
+                float spec = pow(max(0.0, dot(viewDir, reflectDir)), 256.0);
+                vec3 specular = vec3(1.0, 1.0, 0.9) * spec * 15.0;
+                float foam = smoothstep(2.5, 4.5, vHeight);
+                vec3 finalColor = mix(waterColor, vec3(1.0, 1.0, 1.0), foam * 0.7);
+                finalColor = mix(finalColor, vec3(0.8, 0.95, 1.0), fresnel * 0.6);
+                finalColor += specular + crestCaustic;
+                gl_FragColor = vec4(finalColor, 0.9);
+            }
+        `
+    });
+    const ocean = new THREE.Mesh(new THREE.PlaneGeometry(2500, 2500, 128, 128), waterMat);
+    ocean.rotation.x = -Math.PI/2;
+    scene.add(ocean);
+
+    // --- GLASS WALL ---
+    const glassZ = 45.0; 
+    const wallMat = new THREE.ShaderMaterial({
+        transparent: true,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        uniforms: {
+            uTime: { value: 0 },
+            uCameraPos: { value: new THREE.Vector3() },
+            uSunDir: { value: sunPos }
+        },
+        vertexShader: `
+            varying vec3 vWorldPos; 
+            void main() {
+                vec4 wp = modelMatrix * vec4(position, 1.0);
+                vWorldPos = wp.xyz;
+                gl_Position = projectionMatrix * viewMatrix * wp;
+            }
+        `,
+        fragmentShader: `
+            uniform float uTime;
+            uniform vec3 uCameraPos;
+            uniform vec3 uSunDir;
+            varying vec3 vWorldPos;
+
+            vec3 Gerstner(vec2 p, float amp, float freq, float speed, vec2 dir, float time) {
+                float phase = dot(dir, p) * freq + time * speed;
+                return vec3(amp * dir.x * cos(phase), amp * dir.y * cos(phase), amp * sin(phase));
+            }
+
+            void main() {
+                vec2 oceanP = vec2(vWorldPos.x, -${glassZ});
+                vec3 offset = vec3(0.0);
+                float t = uTime * 1.3;
+                offset += Gerstner(oceanP, 2.0, 0.04, 1.2, vec2(1.0, 0.1), t);
+                offset += Gerstner(oceanP, 1.2, 0.08, 1.7, vec2(-0.4, 0.7), t);
+                offset += Gerstner(oceanP, 0.6, 0.15, 2.1, vec2(0.3, -0.9), t);
+
+                float waveHeight = offset.z;
+                float distToSurface = waveHeight - vWorldPos.y;
+
+                if (distToSurface < -0.05) discard; 
+
+                float depthProgress = clamp(vWorldPos.y / -60.0, 0.0, 1.0);
+                float heightFactor = 1.0 - depthProgress; 
+
+                vec3 deepBlue = vec3(0.0, 0.2, 0.5);
+                vec3 shallowBlue = vec3(0.2, 0.7, 0.9);
+                vec3 glassColor = mix(deepBlue, shallowBlue, heightFactor);
+
+                float tensionLine = smoothstep(0.5, 0.0, distToSurface);
+                vec3 finalColor = mix(glassColor, vec3(0.95, 1.0, 1.0), tensionLine);
+
+                vec3 viewDir = normalize(uCameraPos - vWorldPos);
+                vec3 normal = vec3(0.0, 0.0, 1.0); 
+                vec3 halfVector = normalize(uSunDir + viewDir);
+                float specular = pow(max(dot(normal, halfVector), 0.0), 180.0);
+                finalColor += specular * 0.7;
+                float fresnel = pow(1.0 - max(0.0, dot(viewDir, normal)), 4.0);
+                finalColor += fresnel * 0.3 * vec3(0.6, 0.9, 1.0);
+
+                float alpha = mix(0.1, 0.8, heightFactor);
+                alpha = max(alpha, tensionLine * 0.8);
+                
+                gl_FragColor = vec4(finalColor, alpha);
+            }
+        `
+    });
+
+    const wallGeo = new THREE.PlaneGeometry(3000, 150, 1, 1);
+    const glassWall = new THREE.Mesh(wallGeo, wallMat);
+    glassWall.position.set(0, -35, glassZ); 
+    glassWall.renderOrder = 99;
+    scene.add(glassWall);
+
+    // --- MARINE SNOW ---
+    const partCount = 3000;
+    const partGeo = new THREE.BufferGeometry();
+    const posArr = new Float32Array(partCount * 3);
+    for(let i=0; i<partCount; i++) {
+        posArr[i*3] = (Math.random()-0.5) * 1500;
+        posArr[i*3+1] = Math.random() * -120;
+        posArr[i*3+2] = (Math.random()-0.5) * 1500;
+    }
+    partGeo.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
+    const partMat = new THREE.PointsMaterial({ 
+        size: 0.5, 
+        color: 0xccf0ff, 
+        transparent: true, 
+        opacity: 0.3, 
+        blending: THREE.AdditiveBlending,
+        clippingPlanes: [clipPlane]
+    });
+    const marineSnow = new THREE.Points(partGeo, partMat);
+    scene.add(marineSnow);
+
+    let mouse = new THREE.Vector2(0, 0);
+    window.addEventListener('mousemove', (e) => {
+        mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    });
+
+    function animate() {
+        requestAnimationFrame(animate);
+        const time = performance.now() * 0.001;
+
+        // Ensure materials exist before updating uniforms
+        if(waterMat.uniforms) {
+            waterMat.uniforms.uTime.value = time;
+            waterMat.uniforms.uCameraPos.value.copy(camera.position);
+        }
+        if(sandMat.uniforms) sandMat.uniforms.uTime.value = time;
+        if(skyMat.uniforms) skyMat.uniforms.uTime.value = time;
+        if(wallMat.uniforms) {
+            wallMat.uniforms.uTime.value = time;
+            wallMat.uniforms.uCameraPos.value.copy(camera.position);
+        }
+        
+        // Update all mountain layers
+        mountRanges.forEach(m => {
+            if(m.material.uniforms) {
+                m.material.uniforms.uCameraPos.value.copy(camera.position);
+            }
+        });
+
+        const tx = mouse.x * 30;
+        const ty = 4.0 + Math.sin(time * 0.3) * 2.0 + (mouse.y * 15);
+        const tz = 90 + Math.cos(time * 0.15) * 10;
+
+        camera.position.lerp(new THREE.Vector3(tx, ty, tz), 0.03);
+        camera.lookAt(new THREE.Vector3(mouse.x * 20, -10, -300));
+        
+        const positions = marineSnow.geometry.attributes.position.array;
+        for(let i=0; i<partCount; i++) {
+            positions[i*3+1] += Math.sin(time + i) * 0.005;
+        }
+        marineSnow.geometry.attributes.position.needsUpdate = true;
+
+        renderer.render(scene, camera);
+    }
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    animate();
+</script>
+</body>
+</html>
